@@ -1,0 +1,30 @@
+Must run on linux.csc.uvic.ca
+
+PMan needs to show the prompt for user input. ex: PMan: >
+
+PMan allows a program to be started in the background such that the program is running but PMan continues to accept user input.
+
+If user types bg foo, PMan starts foo in background.
+
+bglist will have PMan display a list of all the programs currently running in background, eg: 
+123: /home/user/a1/foo44
+456: /home/user/a1/foo45
+Total background jobs: 2
+
+PMan supports: bgkill <pid> sends TERM signal to job w pid to terminate it
+bgstop <pid> sends STOP signal to job <pid> to sotp that job
+bgstart pid will send CONT signal to the job pid to restart the stopped job
+
+PMan must indicate to user when background jobs have terminated.
+
+PMan supports pstat <pid> to list the following:
+comm: filename of executable in parentheses.
+state: see pdf
+utime: amnt of time process has been scheduled in user mode, in clock ticks.
+stime: amount of time scheduled in kernel mode in clock ticks.
+rss: Resident set size: num of pages process has in real mem.
+voluntaryctxt switches: num voluntary context switches
+nonvoluntary ctxt switches
+if pid DNE, return err: process 1234 does not exist.
+
+if unknown command, return <cmd>:   command not found
