@@ -2,8 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-int
-main(int argc, char* argv[])
+int main(int argc, char* argv[])
 {
 	if (argc != 3) {
 		fprintf(stderr, "Usage: inf tag interval\n");
@@ -15,5 +14,5 @@ main(int argc, char* argv[])
 			sleep(interval);
 		}
 	}
+	exit(0);
 }
-

@@ -1,5 +1,6 @@
 #include <stdio.h>
-int main(int argc, char* argv[])
+int
+main(int argc, char* argv[])
 {
 	if (argc < 2) {
 		fprintf(stderr, "Usage: Would like some command-line arguments\n");
