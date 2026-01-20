@@ -14,42 +14,146 @@ Node* head = NULL;
 
 
 void func_BG(char **cmd){
-	printf("=== Command Structure Debug ===\n");
-	printf("cmd[0] (command): %s\n", cmd[0]);
-	
-	// Print all arguments
-	int i = 0;
-	while(cmd[i] != NULL) {
-		printf("cmd[%d]: %s\n", i, cmd[i]);
-		i++;
-	}
-	printf("Total arguments: %d\n", i);
-	printf("==============================\n");
+
+  /*
+  bg foo, your PMan will start the program foo in the background. That is,39
+  the program foo will execute and PMan will also continue to execute and give the prompt to accept40
+  more commands.
+  */
+  
+  if (cmd[1] == NULL) {
+    printf("No bg names provided, not starting any background processes.\n");
+    return;
+  }
+
+  char **args = &cmd[1];
+
+  pid_t pid = fork();
+
+  if (pid == 0) {
+    execvp(args[0], args);
+    // func returns only if child execvp fails
+    // CHECK FOR KNOWN VS UNKNOWN COMMANDS
+    perror("execvp failed");
+    exit(EXIT_FAILURE);
+
+  } else if (pid > 0) {
+    printf("Started bg process %d\n", pid);
+    head = add_newNode(head, pid, cmd[1]);
+  }
+  else {
+    perror("fork failed");
+  }
+
+  return;
 }
 
 
 void func_BGlist(char **cmd){
-	//Your code here;
+	printList(head);
 }
 
 
 void func_BGkill(char * str_pid){
-	//Your code here
+	if (str_pid == NULL) {
+		printf("Error: No PID provided\n");
+		return;
+	}
+	
+	pid_t pid = atoi(str_pid);
+	
+	if (PifExist(head, pid)) {
+		if (kill(pid, SIGTERM) == 0) {
+			printf("Process %d killed successfully\n", pid);
+			// remove from linekd list
+			head = deleteNode(head, pid);
+		} else {
+			perror("Failed to kill process");
+		}
+	} else {
+		printf("Process %d not found in background list\n", pid);
+	}
 }
 
 
 void func_BGstop(char * str_pid){
-	//Your code here
+	if (str_pid == NULL) {
+		printf("Error: No PID provided\n");
+		return;
+	}
+	
+	pid_t pid = atoi(str_pid);
+	
+	if (PifExist(head, pid)) {
+		if (kill(pid, SIGSTOP) == 0) {
+			printf("Process %d stopped successfully\n", pid);
+		} else {
+			perror("Failed to stop process");
+		}
+	} else {
+		printf("Process %d not found in background list\n", pid);
+	}
 }
 
 
 void func_BGstart(char * str_pid){
-	//Your code here
+	if (str_pid == NULL) {
+		printf("Error: No PID provided\n");
+		return;
+	}
+	
+	pid_t pid = atoi(str_pid);
+	
+	if (PifExist(head, pid)) {
+		if (kill(pid, SIGCONT) == 0) {
+			printf("Process %d continued successfully\n", pid);
+		} else {
+			perror("Failed to continue process");
+		}
+	} else {
+		printf("Process %d not found in background list\n", pid);
+	}
 }
 
 
 void func_pstat(char * str_pid){
-	//Your code here
+	if (str_pid == NULL) {
+		printf("Error: No PID provided\n");
+		return;
+	}
+	
+	pid_t pid = atoi(str_pid);
+	
+	if (PifExist(head, pid)) {
+    FILE *file;
+    char line[256];
+    char path[256];
+    snprintf(path, sizeof(path), "/proc/%d/status", pid);
+
+    file = fopen(path, "r");
+
+    if (file == NULL) {
+      printf("Error: Process %d statistics not found.\n", pid);
+      return;
+    }
+
+    printf("<=== PID %d statistics ===>");
+
+    // print comm, state, utime, stime, rss, voluntary_ctxt_switches, nonvoluntary_ctxt_switches
+    while(fgets(line, sizeof(line), file)) {
+      if (strncmp(line, "Name:", 5) == 0 ||
+				strncmp(line, "State:", 6) == 0 ||
+				strncmp(line, "PPid:", 5) == 0 ||
+				strncmp(line, "VmSize:", 7) == 0 ||
+				strncmp(line, "VmRSS:", 6) == 0) {
+				printf("%s", line);
+			}
+		}
+		fclose(file);
+
+  } else {
+		printf("Process %d not found in background list\n", pid);
+	}
 }
 
  
