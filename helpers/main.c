@@ -12,14 +12,12 @@
 
 Node* head = NULL;
 
+// TODO
+/*
+indicate to user when background job has been terminated.
+*/
 
 void func_BG(char **cmd){
-
-  /*
-  bg foo, your PMan will start the program foo in the background. That is,39
-  the program foo will execute and PMan will also continue to execute and give the prompt to accept40
-  more commands.
-  */
   
   if (cmd[1] == NULL) {
     printf("No bg names provided, not starting any background processes.\n");
@@ -30,13 +28,14 @@ void func_BG(char **cmd){
 
   pid_t pid = fork();
 
+  // child process
   if (pid == 0) {
     execvp(args[0], args);
     // func returns only if child execvp fails
     // CHECK FOR KNOWN VS UNKNOWN COMMANDS
     perror("execvp failed");
     exit(EXIT_FAILURE);
-
+    // parent process
   } else if (pid > 0) {
     printf("Started bg process %d\n", pid);
     head = add_newNode(head, pid, cmd[1]);
@@ -49,9 +48,7 @@ void func_BG(char **cmd){
 }
 
 
-void func_BGlist(char **cmd){
-	printList(head);
-}
+void func_BGlist(char **cmd){printList(head);}
 
 
 void func_BGkill(char * str_pid){
@@ -64,11 +61,11 @@ void func_BGkill(char * str_pid){
 	
 	if (PifExist(head, pid)) {
 		if (kill(pid, SIGTERM) == 0) {
-			printf("Process %d killed successfully\n", pid);
+			printf("Sent SIGTERM to process %d successfully\n", pid);
 			// remove from linekd list
 			head = deleteNode(head, pid);
 		} else {
-			perror("Failed to kill process");
+			perror("Failed to send SIGTERM to process");
 		}
 	} else {
 		printf("Process %d not found in background list\n", pid);
@@ -86,9 +83,9 @@ void func_BGstop(char * str_pid){
 	
 	if (PifExist(head, pid)) {
 		if (kill(pid, SIGSTOP) == 0) {
-			printf("Process %d stopped successfully\n", pid);
+			printf("SIGSTOP sent to process %d successfully\n", pid);
 		} else {
-			perror("Failed to stop process");
+			perror("Failed to send SIGSTOP to process");
 		}
 	} else {
 		printf("Process %d not found in background list\n", pid);
@@ -106,13 +103,68 @@ void func_BGstart(char * str_pid){
 	
 	if (PifExist(head, pid)) {
 		if (kill(pid, SIGCONT) == 0) {
-			printf("Process %d continued successfully\n", pid);
+			printf("Sent SIGCONT to process %d successfully\n", pid);
 		} else {
-			perror("Failed to continue process");
+			perror("Failed to send SIGCONT to process");
 		}
 	} else {
 		printf("Process %d not found in background list\n", pid);
 	}
+}
+
+// Helper function to read /proc/[pid]/stat file
+int read_stat_file(pid_t pid, char *comm, char *state, unsigned long *utime, unsigned long *stime, long *rss) {
+    char statpath[256];
+    FILE *file;
+    
+    snprintf(statpath, sizeof(statpath), "/proc/%d/stat", pid);
+    file = fopen(statpath, "r");
+    if (!file) {
+        return -1; // Error opening file
+    }
+    
+    int result = fscanf(
+        file,
+        "%*d (%255[^)]) %c "
+        "%*d %*d %*d %*d %*d "
+        "%*u %*u %*u %*u "
+        "%lu %lu %*d %*d %*d %*d %*d %*d "
+        "%ld",
+        comm, state, utime, stime, rss
+    );
+    fclose(file);
+    
+    // return if all values were successfully obtained
+    if (result == 5) {return 0;}
+    return -1;
+}
+
+// Helper function to read /proc/[pid]/status file  
+int read_status_file(pid_t pid, unsigned long *voluntary, unsigned long *nonvoluntary) {
+    char statuspath[256];
+    char line[256];
+    FILE *file;
+    int found_voluntary = 0, found_nonvoluntary = 0;
+    
+    snprintf(statuspath, sizeof(statuspath), "/proc/%d/status", pid);
+    file = fopen(statuspath, "r");
+    if (!file) {
+        return -1; // Error opening file
+    }
+    
+    while (fgets(line, sizeof(line), file)) {
+        if (sscanf(line, "voluntary_ctxt_switches: %lu", voluntary) == 1) {
+            found_voluntary = 1;
+        }
+        if (sscanf(line, "nonvoluntary_ctxt_switches: %lu", nonvoluntary) == 1) {
+            found_nonvoluntary = 1;
+        }
+    }
+    fclose(file);
+    
+    // return if all values were successfully obtained
+    if (found_voluntary && found_nonvoluntary) {return 0;}
+    return -1;
 }
 
 void func_pstat(char * str_pid){
@@ -123,82 +175,52 @@ void func_pstat(char * str_pid){
 	
 	pid_t pid = atoi(str_pid);
 	
-	if (PifExist(head, pid)) {
-    FILE *file;
-    char line[256];
-    char statpath[256];
-    char statuspath[256];
+	if (!PifExist(head, pid)) {
+		printf("Process %d not found\n", pid);
+		return;
+	}
 
-    // setting variables to hold statistics
+    // Variables to hold statistics
     char comm[256];
     char state;
-    // long/unsignedlong variable because this is the types for these stats that the kernel exposes
     unsigned long utime, stime;
     long rss;
-    unsigned long voluntary;
-    unsigned long nonvoluntary;
-    snprintf(statpath, sizeof(statpath), "/proc/%d/stat", pid);
+    unsigned long voluntary, nonvoluntary;
     
-    // fetching info found in /stat (comm, state, utime, stime, rss)
-    file = fopen(statpath, "r");
-    if (!file) {
-      printf("Error: Process %d statistics not found.\n", pid);
-      return;
+    // Read from /proc/[pid]/stat
+    if (read_stat_file(pid, comm, &state, &utime, &stime, &rss) != 0) {
+        printf("Error: Process %d statistics not found.\n", pid);
+        return;
     }
-    fscanf(
-      file,
-      "%*d (%255[^)]) %c "
-      "%*d %*d %*d %*d %*d "
-      "%*u %*u %*u %*u "
-      "%lu %lu %*d %*d %*d %*d %*d %*d "
-      "%ld",
-      comm,
-      &state,
-      &utime,
-      &stime,
-      &rss
-    );
-    fclose(file);
     
-    // fetching info found in /status (ctxt_switch counts)
-    snprintf(statuspath, sizeof(statuspath), "/proc/%d/status", pid);
-    file = fopen(statuspath, "r");
-    if (!file) {
-      printf("Error: Process %d status statistics not found.\n", pid);
-      return;
+    // Read from /proc/[pid]/status
+    if (read_status_file(pid, &voluntary, &nonvoluntary) != 0) {
+        printf("Error: Process %d status statistics not found.\n", pid);
+        return;
     }
-    while (fgets(line, sizeof(line), file)) {
-      if (sscanf(line, "voluntary_ctxt_switches: %lu", &voluntary) == 1) {
-        continue;
-      }
-      if (sscanf(line, "nonvoluntary_ctxt_switches: %lu", &nonvoluntary) == 1) {
-        continue;
-      }
-    }
-		fclose(file);
     
-    // printing formatted process statistics
+    // Print formatted process statistics
     printf("<=== PID %d statistics ===>\n\n", pid);
-
-    printf(
-      "comm: %s\n"
-      "state: %c\n"
-      "utime: %lu\n"
-      "stime: %lu\n"
-      "rss: %ld\n"
-      "voluntary context switch count: %lu\n"
-      "nonvoluntary context switch count: %lu\n",
-      comm, state, utime, stime, rss, voluntary, nonvoluntary);
-
-  } else {
-		printf("Process %d not found\n", pid);
-	}
+    printf("comm: %s\n"
+           "state: %c\n"
+           "utime: %lu\n"
+           "stime: %lu\n"
+           "rss: %ld\n"
+           "voluntary context switch count: %lu\n"
+           "nonvoluntary context switch count: %lu\n",
+           comm, state, utime, stime, rss, voluntary, nonvoluntary);
 }
 
+void check_bg_jobs(){
+  printf("not complete");
+}
  
 int main(){
     char user_input_str[50];
     while (true) {
+
+      // check for terminated processes
+      check_bg_jobs();
       printf("Pman: > ");
       fgets(user_input_str, 50, stdin);
       printf("User input: %s \n", user_input_str);
@@ -228,10 +250,13 @@ int main(){
       } else if (strcmp("pstat",lst[0]) == 0) {
         func_pstat(lst[1]);
       } else if (strcmp("q",lst[0]) == 0) {
+        while (head) {
+          head = deleteNode(head, head->pid);
+        }
         printf("Bye Bye \n");
         exit(0);
       } else {
-        printf("Invalid input\n");
+        printf("command not found\n");
       }
     }
 

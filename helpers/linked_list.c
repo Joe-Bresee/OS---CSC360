@@ -41,7 +41,6 @@ Node * deleteNode(Node* head, pid_t pid){
 	}
 
 	if(head->pid == pid) {
-		printf("deleting head node\n");
 		Node* temp = head;
 		head = head->next;
 		free(temp->path);
@@ -80,7 +79,6 @@ void printList(Node *node){
 int PifExist(Node *node, pid_t pid){
 	while (node != NULL) {
 		if (node->pid == pid) {
-			printf("pid %d exists\n", pid);
 			return 1;
 		}
 		node = node->next;
