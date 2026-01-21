@@ -15,6 +15,7 @@ Node* head = NULL;
 // TODO
 /*
 indicate to user when background job has been terminated.
+testing on uvic server, recheck requirement solutions, and submit.
 */
 
 void func_BG(char **cmd){
