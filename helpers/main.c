@@ -115,7 +115,6 @@ void func_BGstart(char * str_pid){
 	}
 }
 
-
 void func_pstat(char * str_pid){
 	if (str_pid == NULL) {
 		printf("Error: No PID provided\n");
@@ -127,32 +126,72 @@ void func_pstat(char * str_pid){
 	if (PifExist(head, pid)) {
     FILE *file;
     char line[256];
-    char path[256];
-    snprintf(path, sizeof(path), "/proc/%d/status", pid);
+    char statpath[256];
+    char statuspath[256];
 
-    file = fopen(path, "r");
-
-    if (file == NULL) {
+    // setting variables to hold statistics
+    char comm[256];
+    char state;
+    // long/unsignedlong variable because this is the types for these stats that the kernel exposes
+    unsigned long utime, stime;
+    long rss;
+    unsigned long voluntary;
+    unsigned long nonvoluntary;
+    snprintf(statpath, sizeof(statpath), "/proc/%d/stat", pid);
+    
+    // fetching info found in /stat (comm, state, utime, stime, rss)
+    file = fopen(statpath, "r");
+    if (!file) {
       printf("Error: Process %d statistics not found.\n", pid);
       return;
     }
-
-    printf("<=== PID %d statistics ===>");
-
-    // print comm, state, utime, stime, rss, voluntary_ctxt_switches, nonvoluntary_ctxt_switches
-    while(fgets(line, sizeof(line), file)) {
-      if (strncmp(line, "Name:", 5) == 0 ||
-				strncmp(line, "State:", 6) == 0 ||
-				strncmp(line, "PPid:", 5) == 0 ||
-				strncmp(line, "VmSize:", 7) == 0 ||
-				strncmp(line, "VmRSS:", 6) == 0) {
-				printf("%s", line);
-			}
-		}
+    fscanf(
+      file,
+      "%*d (%255[^)]) %c "
+      "%*d %*d %*d %*d %*d "
+      "%*u %*u %*u %*u "
+      "%lu %lu %*d %*d %*d %*d %*d %*d "
+      "%ld",
+      comm,
+      &state,
+      &utime,
+      &stime,
+      &rss
+    );
+    fclose(file);
+    
+    // fetching info found in /status (ctxt_switch counts)
+    snprintf(statuspath, sizeof(statuspath), "/proc/%d/status", pid);
+    file = fopen(statuspath, "r");
+    if (!file) {
+      printf("Error: Process %d status statistics not found.\n", pid);
+      return;
+    }
+    while (fgets(line, sizeof(line), file)) {
+      if (sscanf(line, "voluntary_ctxt_switches: %lu", &voluntary) == 1) {
+        continue;
+      }
+      if (sscanf(line, "nonvoluntary_ctxt_switches: %lu", &nonvoluntary) == 1) {
+        continue;
+      }
+    }
 		fclose(file);
+    
+    // printing formatted process statistics
+    printf("<=== PID %d statistics ===>\n\n", pid);
+
+    printf(
+      "comm: %s\n"
+      "state: %c\n"
+      "utime: %lu\n"
+      "stime: %lu\n"
+      "rss: %ld\n"
+      "voluntary context switch count: %lu\n"
+      "nonvoluntary context switch count: %lu\n",
+      comm, state, utime, stime, rss, voluntary, nonvoluntary);
 
   } else {
-		printf("Process %d not found in background list\n", pid);
+		printf("Process %d not found\n", pid);
 	}
 }
 
