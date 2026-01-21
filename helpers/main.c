@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <signal.h>
@@ -12,10 +11,9 @@
 
 Node* head = NULL;
 
-// TODO
 /*
-indicate to user when background job has been terminated.
-testing on uvic server, recheck requirement solutions, and submit.
+ASK: my check_bg_jobs implementation and use?
+ASK: do I submit just main.c or linkedlist.c/.h too? my implementation of linkedlist.c may differ.
 */
 
 void func_BG(char **cmd){
@@ -33,7 +31,6 @@ void func_BG(char **cmd){
   if (pid == 0) {
     execvp(args[0], args);
     // func returns only if child execvp fails
-    // CHECK FOR KNOWN VS UNKNOWN COMMANDS
     perror("execvp failed");
     exit(EXIT_FAILURE);
     // parent process
@@ -52,6 +49,27 @@ void func_BG(char **cmd){
 void func_BGlist(char **cmd){printList(head);}
 
 
+void check_bg_jobs(){
+  int status;
+  pid_t pid;
+
+  while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
+
+  // inform user of termination signal type
+  if (WIFSIGNALED(status)) {
+    printf("Process %d terminated by signal %d\n", pid, WTERMSIG(status));
+  } else if (WIFEXITED(status)) {
+    printf("Process %d terminated normally, exit %d\n", pid, WEXITSTATUS(status));
+  }
+
+  // delete just terminated node
+  if (PifExist(head, pid)){
+    head = deleteNode(head, pid);
+    }
+  }
+}
+
+
 void func_BGkill(char * str_pid){
 	if (str_pid == NULL) {
 		printf("Error: No PID provided\n");
@@ -59,12 +77,19 @@ void func_BGkill(char * str_pid){
 	}
 	
 	pid_t pid = atoi(str_pid);
+  
 	
 	if (PifExist(head, pid)) {
 		if (kill(pid, SIGTERM) == 0) {
 			printf("Sent SIGTERM to process %d successfully\n", pid);
-			// remove from linekd list
-			head = deleteNode(head, pid);
+
+      // allow small time for OS to update child's status 
+      /*I tried immediately running check_bg_jobs and it would not update in time, therefore check_bg_jobs would see and kill
+      the process only after the next user input, which could be bglist, which would then incorrectly show the killed process's pid
+      and then immediately after show the terminationt type. I thought the most in-scope solution for this for the assignment would
+      be this small delay.*/
+      usleep(10000);
+      check_bg_jobs();
 		} else {
 			perror("Failed to send SIGTERM to process");
 		}
@@ -199,22 +224,23 @@ void func_pstat(char * str_pid){
         printf("Error: Process %d status statistics not found.\n", pid);
         return;
     }
+
+    // convert utime/stime to seconds
+    double utime_sec = (double)utime / sysconf(_SC_CLK_TCK);
+    double stime_sec = (double)stime / sysconf(_SC_CLK_TCK);
     
     // Print formatted process statistics
     printf("<=== PID %d statistics ===>\n\n", pid);
     printf("comm: %s\n"
            "state: %c\n"
-           "utime: %lu\n"
-           "stime: %lu\n"
+           "utime: %.2f seconds\n"
+           "stime: %.2f seconds\n"
            "rss: %ld\n"
            "voluntary context switch count: %lu\n"
            "nonvoluntary context switch count: %lu\n",
-           comm, state, utime, stime, rss, voluntary, nonvoluntary);
+           comm, state, utime_sec, stime_sec, rss, voluntary, nonvoluntary);
 }
 
-void check_bg_jobs(){
-  printf("not complete");
-}
  
 int main(){
     char user_input_str[50];
