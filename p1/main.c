@@ -14,6 +14,7 @@ Node* head = NULL;
 /*
 ASK: my check_bg_jobs implementation and use?
 ASK: do I submit just main.c or linkedlist.c/.h too? my implementation of linkedlist.c may differ.
+ASK: my utime is always 0
 */
 
 void func_BG(char **cmd){
@@ -151,12 +152,13 @@ int read_stat_file(pid_t pid, char *comm, char *state, unsigned long *utime, uns
     
     int result = fscanf(
         file,
-        "%*d (%255[^)]) %c "
-        "%*d %*d %*d %*d %*d "
-        "%*u %*u %*u %*u "
-        "%lu %lu %*d %*d %*d %*d %*d %*d "
-        "%ld",
-        comm, state, utime, stime, rss
+        "%*d " //1
+        "(%255[^)]) %c " //comm:2, state: 3
+        "%*d %*d %*d %*d %*d %*u %*u %*u %*u %*lu" //4-13
+        "%lu %lu "  //utime: 14, stime: 15
+        "%*d %*d %*d %*d %*d %*d %*ld %*ld " //16-23
+        "%ld ", //rss: 24
+        comm, state, utime, stime, rss //comm: 2, state: 3, utime: 14, stime: 15, rss: 24
     );
     fclose(file);
     
