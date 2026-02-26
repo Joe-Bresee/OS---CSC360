@@ -1,11 +1,3 @@
-// TODO: add timestamp to each print statement
-
-/**
- Skeleton code of assignment 2 (For reference only)
-	   
- The time calculation could be confusing, check the example of gettimeofday on tutorial for more detail.
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -51,12 +43,6 @@ int queue_length[NQUEUE] = {0, 0};
 int queue_status[NQUEUE] = {IDLE, IDLE}; // variable to record the status of a queue, the value could be idle (not using by any clerk) or the clerk id (1 ~ 4), indicating that the corresponding clerk is now signaling this queue.
 int winner_selected[NQUEUE] = {FALSE, FALSE}; // variable to record if the first customer in a queue has been successfully selected and left the queue.
 
-/* Other global variable may include: 
- 1. condition_variables (and the corresponding mutex_lock) to represent each queue; 
- 2. condition_variables to represent clerks
- 3. others.. depend on your design
- */
-
 //  mutex protecting both queues
 pthread_mutex_t queue_mutex = PTHREAD_MUTEX_INITIALIZER;
 // overall_waiting_time mutex
@@ -66,11 +52,10 @@ pthread_mutex_t waiting_time_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t queue_convar = PTHREAD_COND_INITIALIZER;
 // convar per clerk so customer can signal the right clerk when finished servicing.
 pthread_cond_t clerk_convar[NClerks];
+// convar for waking up convars when clerk is selecting from queue
+pthread_cond_t clerk_select_convar = PTHREAD_COND_INITIALIZER;
 
 void enqueue(struct customer_info *customer){
-
-	// TODO: doublecheck correct naming of p_myInfo
-	// TODO: create queue dsa's
 
 	// business status case
 	if (customer->class_type == 1) {
@@ -134,8 +119,7 @@ int main(int argc, char *argv[]) {
 		int NCustomers;
 		struct customer_info *customers;
 		int i = 0;
-		
-		// TODO: input checking for negative arriveal times etc.
+
 		FILE *file = fopen(input_file, "r");
 		if (!file) { 
 			return -1;
@@ -162,6 +146,39 @@ int main(int argc, char *argv[]) {
 					   &customers[i].arrival_time,
 					   &customers[i].service_time) != 4) {
 				fprintf(stderr, "Error parsing customer %d\n", i + 1);
+				free(customers);
+				fclose(file);
+				return -1;
+			}
+			
+			// Input validation for customer data
+			if (customers[i].user_id <= 0) {
+				fprintf(stderr, "Error: Customer %d has invalid user ID (%d). Must be positive.\n", 
+					   i + 1, customers[i].user_id);
+				free(customers);
+				fclose(file);
+				return -1;
+			}
+			
+			if (customers[i].class_type != 0 && customers[i].class_type != 1) {
+				fprintf(stderr, "Error: Customer %d has invalid class type (%d). Must be 0 (economy) or 1 (business).\n", 
+					   i + 1, customers[i].class_type);
+				free(customers);
+				fclose(file);
+				return -1;
+			}
+			
+			if (customers[i].arrival_time < 0) {
+				fprintf(stderr, "Error: Customer %d has negative arrival time (%d). Must be non-negative.\n", 
+					   i + 1, customers[i].arrival_time);
+				free(customers);
+				fclose(file);
+				return -1;
+			}
+			
+			if (customers[i].service_time <= 0) {
+				fprintf(stderr, "Error: Customer %d has invalid service time (%d). Must be positive.\n", 
+					   i + 1, customers[i].service_time);
 				free(customers);
 				fclose(file);
 				return -1;
@@ -198,6 +215,14 @@ int main(int argc, char *argv[]) {
 
 	// unhang the clerks
 	all_customers_done = 1;
+	pthread_mutex_lock(&queue_mutex);
+	pthread_cond_broadcast(&queue_convar);
+	pthread_mutex_unlock(&queue_mutex);
+
+	// stop clerks
+	for (i = 0; i < NClerks; i++) {
+    pthread_join(clerkId[i], NULL);
+	}
 	
 	// calculate the average waiting time of all customers
 	double average_wait = overall_waiting_time / NCustomers;
@@ -226,7 +251,7 @@ void * customer_entry(void * cus_info){
 	// sleep arrival time of customer from program start
 	usleep(p_myInfo->arrival_time * 100000);
 	
-	fprintf(stdout, "Customer with ID %2d arrives at %d\n", p_myInfo->user_id, p_myInfo->arrival_time);
+	fprintf(stdout, "Customer with ID %2d arrives at time %d\n", p_myInfo->user_id, p_myInfo->arrival_time);
 	
 	// set enter time for later calculation of waiting time
 	double queue_enter_time = curtimeofdaydouble();
@@ -237,12 +262,12 @@ void * customer_entry(void * cus_info){
 	pthread_mutex_lock(&queue_mutex); 
 	{
 		enqueue(p_myInfo);
-		// TODO: refactor queue setup so easy to access lenth and stuff
-		fprintf(stdout, "A customer enters a queue: the queue ID %1d, and length of the queue %2d. \n", p_myInfo->class_type, queue_length[cur_queue]);
+		pthread_cond_signal(&queue_convar);
+		fprintf(stdout, "A customer enters a queue: the queue ID is %1d, and the length of the queue is %2d. \n", p_myInfo->class_type, queue_length[cur_queue]);
 
 		while (TRUE) {
 			// wait for clerk to take me
-			pthread_cond_wait(&queue_convar, &queue_mutex);
+			pthread_cond_wait(&clerk_select_convar, &queue_mutex);
 			int head_id = (cur_queue == 1) ? business_queue[0].user_id : economy_queue[0].user_id;
 			if (p_myInfo->user_id == head_id && !winner_selected[cur_queue]) {
 				dequeue(p_myInfo->class_type);
@@ -300,7 +325,7 @@ void *clerk_entry(void * clerkNum){
 				pthread_mutex_unlock(&queue_mutex);
 				pthread_exit(NULL);
 			}
-			fprintf(stdout, "clerk %d is going idle, as no customers are in either queue.", clerkID);
+			fprintf(stdout, "clerk %d is going idle, as no customers are in either queue.\n", clerkID);
 			pthread_cond_wait(&queue_convar, &queue_mutex);
 			pthread_mutex_unlock(&queue_mutex);
 			continue;
@@ -308,9 +333,14 @@ void *clerk_entry(void * clerkNum){
 		
 		queue_status[selected_queue_ID] = clerkID; // The current clerk (clerkID) is signaling this queue
 		
-		pthread_cond_broadcast(&queue_convar); // Awake the customer (the one enter into the queue first) from the selected queue
+		// TODO: use separate convar fpr signalling when a customer actually joins the queue, not just when a clerk is selecting a customer.
+		pthread_cond_broadcast(&clerk_select_convar); // Awake the customer (the one enter into the queue first) from the selected queue
 		
 		winner_selected[selected_queue_ID] = FALSE; // set the initial value as the customer has not selected from the queue.
+		
+		while (!winner_selected[selected_queue_ID]){
+			pthread_cond_wait(&clerk_select_convar, &queue_mutex);
+		}
 		
 		pthread_mutex_unlock(&queue_mutex);
 		
