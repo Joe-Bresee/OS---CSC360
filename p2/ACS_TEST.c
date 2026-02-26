@@ -273,10 +273,13 @@ void * customer_entry(void * cus_info){
 		// 
 		while (TRUE) {
 			pthread_cond_wait(&clerk_select_convar, &queue_mutex);
+            fprintf(stdout, "DEBUG customer %d: woke up, last_served_id[%d]=%d, my_id=%d\n", p_myInfo->user_id, cur_queue, last_served_id[cur_queue], p_myInfo->user_id);
+
 			if ( last_served_id[cur_queue] == p_myInfo->user_id ) {
         	break;
 			}
 		}
+        fprintf(stdout, "DEBUG customer %d: selected by clerk, exiting queue wait\n", p_myInfo->user_id);
 			
 	}
 	pthread_mutex_unlock(&queue_mutex); //unlock mutex_lock such that other customers can enter into the queue
@@ -299,6 +302,7 @@ void * customer_entry(void * cus_info){
 	
 	fprintf(stdout, "A clerk finishes serving a customer: end time %.2f, the customer ID %2d, the clerk ID %1d. \n", curtimeofdaydouble(), p_myInfo->user_id, clerk_woke_me_up);
 	
+    fprintf(stdout, "DEBUG customer %d: signaling clerk_convar[%d]\n", p_myInfo->user_id, clerk_woke_me_up - 1);
 	pthread_cond_signal(&clerk_convar[clerk_woke_me_up - 1]); // Notify the clerk that service is finished, it can serve another customer
 	
 	pthread_exit(NULL);
@@ -321,11 +325,13 @@ void *clerk_entry(void * clerkNum){
             }
             fprintf(stdout, "clerk %d is going idle\n", clerkID);
             pthread_cond_wait(&queue_convar, &queue_mutex);
+            fprintf(stdout, "DEBUG clerk %d: woke up from queue_convar, queue lengths: business=%d economy=%d\n", clerkID, queue_length[1], queue_length[0]);
         }
 
 		// dequeue
         int selected_queue_ID = (queue_length[1] > 0) ? 1 : 0;
         struct customer_info customer = dequeue(selected_queue_ID);
+        fprintf(stdout, "DEBUG clerk %d: dequeued customer %d from queue %d, broadcasting\n", clerkID, customer.user_id, selected_queue_ID);
         queue_status[selected_queue_ID] = clerkID;
 		last_served_id[selected_queue_ID] = customer.user_id;
         
@@ -335,6 +341,9 @@ void *clerk_entry(void * clerkNum){
         // wait for customer to finish service
         pthread_mutex_lock(&queue_mutex);
         pthread_cond_wait(&clerk_convar[clerkID - 1], &queue_mutex);
+        // In clerk_entry, after cond_wait on clerk_convar:
+        fprintf(stdout, "DEBUG clerk %d: woke up from clerk_convar, looping back\n", clerkID);
+
         pthread_mutex_unlock(&queue_mutex);
     }
 }
