@@ -1,0 +1,70 @@
+business queue of customers
+economy queue of customers
+
+- all business customers served by clerk first before economy
+- no customers, clerk idles
+
+threads simulate customers arriving and waiting for service. write
+code that schedules customers according to above rules.
+
+initial conditions:
+- all queues empty, all clerks idle.
+- all customers given in a file.
+
+CUSTOMER
+- class type: indicates business or economy
+- arrival time
+- service time: required time it takes to serve customers (done by usleep)
+
+RUNNING
+- ACS customers.txt
+
+CUSTOMER FILE:
+by line:
+total number of customers
+<unique id>:<class>,<arrival time>,<service time>
+
+851
+1:0,2,6052
+2:0,4,7053
+3:0,5,5054
+4:1,7,3055
+5:1,7,4056
+6:1,8,5057
+7:0,10,3058
+8:0,11,50
+
+OUTPUT:
+Output prints of events and state changes like
+1. A customer arrives: customer ID65
+2. A customer enters a queue: the queue ID, and length of the queue.66
+3. A clerk starts serving a customer: start time, the customer ID, the clerk ID.67
+4. A clerk finishes serving a customer: end time, the customer ID, the clerk ID.68
+
+- average waiting time of all customers in system
+- average waiting time of business-class customers
+- average waiting time of all economy-class customers
+
+DESIGN DOCUMENT
+You will write a design document which answers the following questions. It is recommended that you think through87
+the following questions very carefully before answering them.88
+Unlike Assignment 1, debugging will be harder after the basic design has been coded. Therefore, it is very89
+important to have a clear design before you start coding. So think about the following carefully and then write down90
+the answers.91
+1. How many threads are you going to use? Specify the task that you intend each thread to perform.92
+2. Do the threads work independently? Or, is there an overall “controller” thread?93
+3. How many mutexes are you going to use? Specify the operation that each mutex will guard.94
+4. Will the main thread be idle? If not, what will it be doing?95
+5. How are you going to represent customers? what type of data structure will you use?96
+6. How are you going to ensure that data structures in your program will not be modified concurrently?97
+7. How many convars are you going to use? For each convar:98
+(a) Describe the condition that the convar will represent.99
+(b) Which mutex is associated with the convar? Why?100
+(c) What operation should be performed once pthread cond wait() has been unblocked and re-acquired the101
+mutex?102
+8. Briefly sketch the overall algorithm you will use. You may use sentences such as:103
+If clerk i finishes service, release clerkImutex.104
+Note: You are required to type in your document and submit it in pdf file format together with your code. Other105
+file format or handwriting will not be accepted.
+
+SUBMIT AS TAR.GZ

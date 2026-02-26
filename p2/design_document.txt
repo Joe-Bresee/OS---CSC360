@@ -1,0 +1,40 @@
+1. I am planning on using 5 threads + one thread per customer, each thread representing a clerk which processes customers. Each clerk can process one customer at a time.
+
+2. The threads are synchronized through convars, but not central controller thread.
+
+3. I will probably use 1 mutexes, for updating/checking both queues. This simplifies deadlock and concurrency issues, a worthwhile tradeoff for this type of problem.
+
+4. file processing, struct/queue building, initiating other threads.
+
+5. I will use a queue of struct objects, created using malloc based on reading the input file.
+
+6. Mutexes.
+
+7. 2 (that i know of so far)
+a) convar for when a customer joins the queue, and convar for when the clerk initiates processing a customer
+b) the mutex of the corresponding queue. Clerk locks it when accessing queue.
+c) On customer joining the queue: check if idle. If so, take first customer in business queue if full. if empty, first from economy.
+On initiating processing: clerk modifies the queue to remove the customer its processing and perform the processing (usleep time).
+
+8. 
+
+main thread
+
+file processing and dsa:
+read input file line by line, fill each customer data line into a customer struct.
+Store customer struct in a customers struct, sizeof customer struct times number of customers.
+
+initialization:
+init two empty queues, mallocing if necessary for this dsa (i dont think it does need to be in c)
+init clerk threads and customer threads
+customer init: start sleep time of arrival time.
+clerk init: wake up, wait for convar signal of queue being non empty.
+main init: the file processing, then calls pthread(join)
+
+scheduling
+customer thread can put itself in the queue when usleep done
+customer waits in queue to be picked
+
+according to class and queue, clerk takes the corresponding customer and processes it.
+
+during this, local function has prints at output points, 
