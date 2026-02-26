@@ -24,10 +24,14 @@ struct customer_info{ // use this struct to record the customer information read
 #define TRUE 1     // Define TRUE
 #define FALSE 0    // Define FALSE
 #define IDLE TRUE     // Define idle status
+#define MAX_CUSTOMERS 10000
  
 struct timeval init_time; // use this variable to record the simulation start time; No need to use mutex_lock when reading this variable since the value would not be changed by thread once the initial time was set.
 double overall_waiting_time; //A global variable to add up the overall waiting time for all customers, every customer add their own waiting time to this variable, mutex_lock is necessary.
-int queue_length[NQUEUE];// variable stores the real-time queue length information; mutex_lock needed
+struct customer_info business_queue[MAX_CUSTOMERS];
+struct customer_info economy_queue[MAX_CUSTOMERS];
+int business_queue_length = 0;
+int economy_queue_length = 0;
 
 int queue_status[NQUEUE]; // variable to record the status of a queue, the value could be idle (not using by any clerk) or the clerk id (1 ~ 4), indicating that the corresponding clerk is now signaling this queue.
 int winner_selected[NQUEUE] = {FALSE, FALSE}; // variable to record if the first customer in a queue has been successfully selected and left the queue.
@@ -39,27 +43,20 @@ int winner_selected[NQUEUE] = {FALSE, FALSE}; // variable to record if the first
  */
 
 
-void enqueue(struct customer_info p_myInfo){
+void enqueue(struct customer_info *customer){
 
 	// TODO: doublecheck correct naming of p_myInfo
 	// TODO: create queue dsa's
 
 	// business status case
-	if (p_myInfo.class_type) {
-		if (!b_queue.push(p_myInfo.user_id)) {
-			perrorf("unable to queue customer %d to business queue", p_myInfo.user_id);
-			return;
-		}
+	if (customer->class_type == 1) {
+		business_queue[business_queue_length] = *customer;
+		business_queue_length ++;
 		printf("Customer %d entered the business queue", p_myInfo.user_id, len(b_queue));
-	}
-
-	// economy status case
-	if (!e_queue.push(p_myInfo.user_id)) {
-			perrorf("unable to queue customer %d to econonmy queue", p_myInfo.user_id);
-			return;
+		} else {
+			economy_queue[economy_queue_length] = *customer;
+			economy_queue_length ++;
 		}
-		printf("Customer %d entered the economy queue", p_myInfo.user_id, len(e_queue));
-
 }
 
 int main(int argc, char *argv[]) {
