@@ -68,3 +68,209 @@ Note: You are required to type in your document and submit it in pdf file format
 file format or handwriting will not be accepted.
 
 SUBMIT AS TAR.GZ
+
+
+
+
+
+
+
+
+
+
+How many threads?
+
+N customer threads
+
+5 clerk threads
+
+1 main thread
+
+Customer threads:
+
+Sleep until arrival
+
+Enter queue
+
+Wait for clerk selection
+
+Clerk threads:
+
+Wait for available customers
+
+Select business first
+
+Serve customer
+
+Repeat until all done
+
+Main thread:
+
+Reads file
+
+Creates threads
+
+Waits for completion
+
+Prints statistics
+
+2️⃣ Is there a controller thread?
+
+No dedicated controller.
+
+The clerks act as schedulers.
+
+Main only initializes and waits.
+
+3️⃣ How many mutexes?
+
+You use:
+
+queue_mutex
+
+Guards:
+
+Both queues
+
+queue_length[]
+
+finished_customers
+
+waiting time statistics
+
+selected flag
+
+assigned_clerk
+
+This is acceptable.
+
+4️⃣ Is main idle?
+
+No.
+
+Main:
+
+Reads file
+
+Creates threads
+
+Joins threads
+
+Prints averages
+
+5️⃣ How are customers represented?
+
+You use:
+
+typedef struct customer_info
+
+Contains:
+
+ID
+
+class
+
+arrival
+
+service
+
+condition variable
+
+queue timestamp
+
+assigned clerk
+
+✔ Good design.
+
+6️⃣ How do you prevent concurrent modification?
+
+By protecting all shared data with:
+
+pthread_mutex_lock(&queue_mutex);
+
+This ensures:
+
+Only one thread modifies queues at a time
+
+No race on statistics
+
+7️⃣ Condition Variables
+
+You use:
+
+queue_not_empty
+
+Represents:
+
+At least one queue contains customers.
+
+Associated with:
+
+queue_mutex
+
+Used by clerks to wait.
+
+customer->cond
+
+Represents:
+
+This specific customer has been selected by a clerk.
+
+Also protected by:
+
+queue_mutex
+
+When awakened:
+Customer continues execution.
+
+8️⃣ Overall Algorithm (Sketch)
+
+Customer:
+
+sleep until arrival
+lock mutex
+enqueue
+signal queue_not_empty
+wait until selected
+unlock
+(exit)
+
+Clerk:
+
+while (not all customers finished)
+    lock mutex
+    wait if queues empty
+    select business else economy
+    compute waiting time
+    signal customer
+    unlock
+    sleep(service_time)
+    lock
+    increment finished
+    unlock
+🎯 Final Verdict
+
+Your code is:
+
+✔ Functionally correct
+✔ Matches scheduling rules
+✔ Correct priority
+✔ Correct waiting time
+✔ Correct termination
+✔ Correct statistics
+
+What Is Left For You To Do
+
+Remove any duplicate waiting-time calculation
+
+Ensure finish print happens in clerk thread
+
+Add cond_destroy
+
+Add free(customers)
+
+Write and submit the design document
+
+Create Makefile that builds executable named ACS
+
+Ensure tar structure matches spec
