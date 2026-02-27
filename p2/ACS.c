@@ -26,8 +26,8 @@ typedef struct customer_info{ // use this struct to record the customer informat
 
 customer_t *customers;
 
-customer_t business_queue[MAX_CUSTOMERS];
-customer_t economy_queue[MAX_CUSTOMERS];
+customer_t *business_queue[MAX_CUSTOMERS];
+customer_t *economy_queue[MAX_CUSTOMERS];
 int queue_length[NQUEUE] = {0, 0};
 
 int NCustomers;
@@ -44,7 +44,7 @@ void *clerk_entry(void *clerkNum);
 void *customer_entry(void *cus_info);
 double curtimeofdaydouble();
 void enqueue(struct customer_info *customer);
-customer_t dequeue(int queue_id);
+customer_t *dequeue(int queue_id);
 
 struct timeval init_time; // use this variable to record the simulation start time; No need to use mutex_lock when reading this variable since the value would not be changed by thread once the initial time was set.
 
@@ -63,35 +63,30 @@ void enqueue(struct customer_info *customer){
 
 	// business status case
 	if (customer->class_type == 1) {
-		business_queue[queue_length[1]] = *customer;
+		business_queue[queue_length[1]] = customer;
 		queue_length[1]++;
 		printf("Customer %d entered the business queue\n", customer->user_id);
 		} else {
-			economy_queue[queue_length[0]] = *customer;
+			economy_queue[queue_length[0]] = customer;
 			queue_length[0]++;
 			printf("Customer %d entered the economy queue\n", customer->user_id);
 		}
 }
 
-customer_t dequeue(int queue_id) {
-	// dequeue customer from front of queue based on the queue id
-	customer_t customer = (queue_id == 1) ? business_queue[0] : economy_queue[0];
-
-	// shift each customer forward in queue because first customer is gone.
-	if (queue_id == 1) {
-		for (int i = 0; i < queue_length[1] - 1; i++) {
-			business_queue[i] = business_queue[i + 1];
-		}
-	queue_length[1]--;
-	} else {
-		for (int i = 0; i < queue_length[0] - 1; i++) {
-			economy_queue[i] = economy_queue[i + 1];
-			// TODO: queuelen safety w mutexes
-		}
-	queue_length[0]--;
-	}
-
-	return customer;
+customer_t* dequeue(int queue_id) {
+    customer_t *customer;
+    if (queue_id == 1) {
+        customer = business_queue[0];
+        for (int i = 0; i < queue_length[1]-1; i++)
+            business_queue[i] = business_queue[i+1];
+        queue_length[1]--;
+    } else {
+        customer = economy_queue[0];
+        for (int i = 0; i < queue_length[0]-1; i++)
+            economy_queue[i] = economy_queue[i+1];
+        queue_length[0]--;
+    }
+    return customer;
 }
 
 int main(int argc, char *argv[]) {
@@ -246,11 +241,10 @@ void * customer_entry(void * cus_info){
 
 	pthread_cond_signal(&queue_not_empty);
 
-	while (!p_myInfo->selected) {
+	while (!p_myInfo->selected)
 		pthread_cond_wait(&p_myInfo->cond, &queue_mutex);
-		
+
 	pthread_mutex_unlock(&queue_mutex);
-	}
 
 	return NULL;
 }
@@ -274,14 +268,15 @@ void *clerk_entry(void * clerkNum){
 
 		// dequeue
         int selected_queue_ID = (queue_length[1] > 0) ? 1 : 0;
-        customer_t customer = dequeue(selected_queue_ID);
+        customer_t *customer = dequeue(selected_queue_ID);
         
+		// calculate waiting time
 		double start_time_service = get_time();
-		double wait_time = start_time_service - customer.queue_enter_time;
+		double wait_time = start_time_service - customer->queue_enter_time;
 
 		total_wait_all += wait_time;
 
-		if (customer.class_type == 1) {
+		if (customer->class_type == 1) {
 			total_wait_business += wait_time;
 			count_business++;
 		} else {
@@ -289,21 +284,22 @@ void *clerk_entry(void * clerkNum){
 			count_economy++;
 		}
         
-		customer.selected = 1;
-		customer.assigned_clerk = clerkID;
+		// mark as seleected and sign clerk
+		customer->selected = 1;
+		customer->assigned_clerk = clerkID;
 
-		fprintf(stdout, "A clerk starts serving a customer: start time %.2f, customer ID %2d, the clerk ID %1d.\n.", start_time_service, customer.user_id, clerkID);
+		fprintf(stdout, "A clerk starts serving a customer: start time %.2f, customer ID %2d, the clerk ID %1d.\n", start_time_service, customer->user_id, clerkID);
         
-		pthread_cond_signal(&customer.cond);
+		pthread_cond_signal(&customer->cond);
         pthread_mutex_unlock(&queue_mutex);
 
 
         // service customer
-		usleep(customer.service_time * 100000);
+		usleep(customer->service_time * 100000);
 
-		double end_time_service = gettime();
+		double end_time_service = get_time();
 
-		printf("A clerk finishes serving a customer: end time %.2f, the customer ID %2d, the clerk ID %1d.\n", end_time_service, customer.user_id, clerkID);
+		printf("A clerk finishes serving a customer: end time %.2f, the customer ID %2d, the clerk ID %1d.\n", end_time_service, customer->user_id, clerkID);
 
 		pthread_mutex_lock(&queue_mutex);
 
