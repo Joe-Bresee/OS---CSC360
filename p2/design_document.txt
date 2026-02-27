@@ -1,40 +1,53 @@
-1. I am planning on using 5 threads + one thread per customer, each thread representing a clerk which processes customers. Each clerk can process one customer at a time.
+1. I am planning on using 5 threads + one thread per customer plus the main thread, each thread representing either a clerk or a customer or the main thread.
 
-2. The threads are synchronized through convars, but not central controller thread.
+2. The threads are synchronized through convars, but not there is no central controller thread. Main does start each thread, but each thread works itself and uses signals etc to interact with other threads. For example, a customer thread will signal queue_not_empty for the clerk loop.
 
-3. I will probably use 1 mutexes, for updating/checking both queues. This simplifies deadlock and concurrency issues, a worthwhile tradeoff for this type of problem.
+3. I will use one mutex. This design consideration makes it simplest to ensure queue resources are locked sufficiently without deadlocking with other queue resources. This will require more focus on which thread has acquired the deadlock and what that means for the execution of the other threads.
 
-4. file processing, struct/queue building, initiating other threads.
+4. The main thread will do file processing, malloc, struct/queue building, then will create/join the clerk/customer threads. It will print the waiting times respectively, then cleanup/destroy resources and exit.
 
-5. I will use a queue of struct objects, created using malloc based on reading the input file.
+5. I will represent customers as threads, and track each customer using a queue, and using a struct containing customer info, I can operate on them based on their information and statuses.
 
-6. Mutexes.
+6. Using a mutex wrapping around queue operations and time modification operations, I can ensure only one thread accesses them at a time, ensuring that the resources won't corrupt.
 
-7. 2 (that i know of so far)
-a) convar for when a customer joins the queue, and convar for when the clerk initiates processing a customer
-b) the mutex of the corresponding queue. Clerk locks it when accessing queue.
-c) On customer joining the queue: check if idle. If so, take first customer in business queue if full. if empty, first from economy.
-On initiating processing: clerk modifies the queue to remove the customer its processing and perform the processing (usleep time).
+7. I will use 1 + N convars, one for signaling queue_not_empty, and one per customer that signals selected by clerk.
+
+a) queue_not_empty represents at least one queue contains customers. each customer->cond represents that customer being selected by a clerk.
+b) queue_mutex is associated with both.
+c)for queue_not_empty: clerk selects a customer to process. For customer->cond: customer continues servicing.
 
 8. 
+Customer:
+sleeps its arrival time
+mutex lock
+enqueues
+signals queue_not_empty
+waits to be selected
+unlocks mutex
 
-main thread
+Clerk:
+Loops:
+    mutex lock
+    loops while queues are empty:
+    if all customers serviced, exit
+    idle and wait for queue_not_empty signal
 
-file processing and dsa:
-read input file line by line, fill each customer data line into a customer struct.
-Store customer struct in a customers struct, sizeof customer struct times number of customers.
+    dequeues customer
+    records wait times
+    assign and select customer by its clerkID
+    sends cond signal to customer
+    unlocks
 
-initialization:
-init two empty queues, mallocing if necessary for this dsa (i dont think it does need to be in c)
-init clerk threads and customer threads
-customer init: start sleep time of arrival time.
-clerk init: wake up, wait for convar signal of queue being non empty.
-main init: the file processing, then calls pthread(join)
+    services customer
+    locks
+    increments number of finished customers
+    if all finished broadcast queue_not_empty
+    unlock
 
-scheduling
-customer thread can put itself in the queue when usleep done
-customer waits in queue to be picked
-
-according to class and queue, clerk takes the corresponding customer and processes it.
-
-during this, local function has prints at output points, 
+main:
+start time
+process file into struct
+initialize threads
+join threads
+print times
+free and destroy resources
