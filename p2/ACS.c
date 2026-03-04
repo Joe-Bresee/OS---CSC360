@@ -3,6 +3,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <stdarg.h>
 
 #define NQUEUE 2  // Define number of queues (business and economy)
 #define NClerks 5  // Define number of clerks
@@ -50,7 +51,33 @@ struct timeval init_time; // use this variable to record the simulation start ti
 
 pthread_mutex_t queue_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t queue_not_empty = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t file_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+void print_to_output_file(char *line){
+	
+	pthread_mutex_lock(&file_mutex);
+	FILE *file = fopen("output_file.txt", "a");
+	if (file != NULL) {
+		fputs(line, file);
+		fclose(file);
+	}
+	pthread_mutex_unlock(&file_mutex);
+	
+	// print to stdout for debugging
+	printf("%s", line);
+	
+	return;
+}
+
+// helper formatter for printing to op file
+void print_formatted(const char *format, ...) {
+	char buffer[256];
+	va_list args;
+	va_start(args, format);
+	vsnprintf(buffer, sizeof(buffer), format, args);
+	va_end(args);
+	print_to_output_file(buffer);
+}   
 
 double get_time() {
     struct timeval now;
@@ -65,11 +92,11 @@ void enqueue(struct customer_info *customer){
 	if (customer->class_type == 1) {
 		business_queue[queue_length[1]] = customer;
 		queue_length[1]++;
-		printf("Customer %d entered the business queue\n", customer->user_id);
+		print_formatted("Customer %d entered the business queue\n", customer->user_id);
 		} else {
 			economy_queue[queue_length[0]] = customer;
 			queue_length[0]++;
-			printf("Customer %d entered the economy queue\n", customer->user_id);
+			print_formatted("Customer %d entered the economy queue\n", customer->user_id);
 		}
 }
 
@@ -95,7 +122,7 @@ int main(int argc, char *argv[]) {
 	gettimeofday(&init_time, NULL);
 
 	if (argc < 2) {
-        printf("Usage: %s <input_file>\n", argv[0]);
+        print_formatted("Usage: %s <input_file>\n", argv[0]);
         return 1;
     }
 
@@ -138,7 +165,7 @@ int main(int argc, char *argv[]) {
 			
 			// Input validation for customer data
 			if (customers[i].user_id <= 0) {
-				fprintf(stderr, "Error: Customer %d has invalid user ID (%d). Must be positive.\n", 
+				print_formatted("Error: Customer %d has invalid user ID (%d). Must be positive.\n", 
 					   i + 1, customers[i].user_id);
 				free(customers);
 				fclose(file);
@@ -146,7 +173,7 @@ int main(int argc, char *argv[]) {
 			}
 			
 			if (customers[i].class_type != 0 && customers[i].class_type != 1) {
-				fprintf(stderr, "Error: Customer %d has invalid class type (%d). Must be 0 (economy) or 1 (business).\n", 
+				print_formatted("Error: Customer %d has invalid class type (%d). Must be 0 (economy) or 1 (business).\n", 
 					   i + 1, customers[i].class_type);
 				free(customers);
 				fclose(file);
@@ -154,7 +181,7 @@ int main(int argc, char *argv[]) {
 			}
 			
 			if (customers[i].arrival_time < 0) {
-				fprintf(stderr, "Error: Customer %d has negative arrival time (%d). Must be non-negative.\n", 
+				print_formatted("Error: Customer %d has negative arrival time (%d). Must be non-negative.\n", 
 					   i + 1, customers[i].arrival_time);
 				free(customers);
 				fclose(file);
@@ -162,14 +189,14 @@ int main(int argc, char *argv[]) {
 			}
 			
 			if (customers[i].service_time <= 0) {
-				fprintf(stderr, "Error: Customer %d has invalid service time (%d). Must be positive.\n", 
+				print_formatted("Error: Customer %d has invalid service time (%d). Must be positive.\n", 
 					   i + 1, customers[i].service_time);
 				free(customers);
 				fclose(file);
 				return -1;
 			}
 			
-			printf("Loaded customer %d: class=%s, arrival=%d, service=%d\n", 
+			print_formatted("Loaded customer %d: class=%s, arrival=%d, service=%d\n", 
 				   customers[i].user_id,
 				   (customers[i].class_type == 1) ? "business" : "economy",
 				   customers[i].arrival_time,
@@ -177,7 +204,7 @@ int main(int argc, char *argv[]) {
 		}
 
 		fclose(file);
-		printf("Successfully loaded %d customers\n", NCustomers);
+		print_formatted("Successfully loaded %d customers\n", NCustomers);
 
 
 	//create clerk thread
@@ -202,14 +229,18 @@ int main(int argc, char *argv[]) {
     pthread_join(clerkId[i], NULL);
 	}
 
-	printf("The average waiting time for all customers in the system is: %.2f seconds.\n",
-           total_wait_all / NCustomers);
+	char buffer[256];
+	sprintf(buffer, "The average waiting time for all customers in the system is: %.2f seconds.\n",
+		   total_wait_all / NCustomers);
+	print_formatted(buffer);
 
-    printf("The average waiting time for all business-class customers is: %.2f seconds.\n",
-           count_business ? total_wait_business / count_business : 0.0);
+	sprintf(buffer, "The average waiting time for all business-class customers is: %.2f seconds.\n",
+		   count_business ? total_wait_business / count_business : 0.0);
+	print_formatted(buffer);
 
-    printf("The average waiting time for all economy-class customers is: %.2f seconds.\n",
-           count_economy ? total_wait_economy / count_economy : 0.0);
+	sprintf(buffer, "The average waiting time for all economy-class customers is: %.2f seconds.\n",
+		   count_economy ? total_wait_economy / count_economy : 0.0);
+	print_formatted(buffer);
 
     free(customers);
 
@@ -229,7 +260,7 @@ void * customer_entry(void * cus_info){
 	// sleep arrival time of customer from program start
 	usleep(p_myInfo->arrival_time * 100000);
 	
-	fprintf(stdout, "Customer with ID %2d arrives at time %d\n", p_myInfo->user_id, p_myInfo->arrival_time);
+	print_formatted("Customer with ID %2d arrives at time %d\n", p_myInfo->user_id, p_myInfo->arrival_time);
 	
 	pthread_mutex_lock(&queue_mutex);
 	
@@ -237,7 +268,7 @@ void * customer_entry(void * cus_info){
 	p_myInfo->queue_enter_time = get_time();
 	enqueue(p_myInfo);
 
-	fprintf(stdout, "A customer enters a queue: the queue ID is %1d, and the length of the queue is %2d. \n", p_myInfo->class_type, queue_length[p_myInfo->class_type]);
+	print_formatted("A customer enters a queue: the queue ID is %1d, and the length of the queue is %2d. \n", p_myInfo->class_type, queue_length[p_myInfo->class_type]);
 
 	pthread_cond_signal(&queue_not_empty);
 
@@ -262,7 +293,7 @@ void *clerk_entry(void * clerkNum){
                 return NULL;
             }
 
-            fprintf(stdout, "clerk %d is going idle\n", clerkID);
+            print_formatted("clerk %d is going idle\n", clerkID);
             pthread_cond_wait(&queue_not_empty, &queue_mutex);
         }
 
@@ -288,7 +319,7 @@ void *clerk_entry(void * clerkNum){
 		customer->selected = 1;
 		customer->assigned_clerk = clerkID;
 
-		fprintf(stdout, "A clerk starts serving a customer: start time %.2f, customer ID %2d, the clerk ID %1d.\n", start_time_service, customer->user_id, clerkID);
+		print_formatted("A clerk starts serving a customer: start time %.2f, customer ID %2d, the clerk ID %1d.\n", start_time_service, customer->user_id, clerkID);
         
 		pthread_cond_signal(&customer->cond);
         pthread_mutex_unlock(&queue_mutex);
@@ -299,7 +330,7 @@ void *clerk_entry(void * clerkNum){
 
 		double end_time_service = get_time();
 
-		printf("A clerk finishes serving a customer: end time %.2f, the customer ID %2d, the clerk ID %1d.\n", end_time_service, customer->user_id, clerkID);
+		print_formatted("A clerk finishes serving a customer: end time %.2f, the customer ID %2d, the clerk ID %1d.\n", end_time_service, customer->user_id, clerkID);
 
 		pthread_mutex_lock(&queue_mutex);
 

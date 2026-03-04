@@ -1,0 +1,61 @@
+Loaded customer 1: class=economy, arrival=2, service=60
+Loaded customer 2: class=economy, arrival=4, service=70
+Loaded customer 3: class=economy, arrival=5, service=50
+Loaded customer 4: class=business, arrival=7, service=30
+Loaded customer 5: class=business, arrival=7, service=40
+Loaded customer 6: class=business, arrival=8, service=50
+Loaded customer 7: class=economy, arrival=10, service=30
+Loaded customer 8: class=economy, arrival=11, service=50
+Successfully loaded 8 customers
+clerk 1 is going idle
+clerk 2 is going idle
+clerk 3 is going idle
+clerk 4 is going idle
+clerk 5 is going idle
+Customer with ID  1 arrives at time 2
+Customer 1 entered the economy queue
+A customer enters a queue: the queue ID is 0, and the length of the queue is  1. 
+A clerk starts serving a customer: start time 0.20, customer ID  1, the clerk ID 1.
+Customer with ID  2 arrives at time 4
+Customer 2 entered the economy queue
+A customer enters a queue: the queue ID is 0, and the length of the queue is  1. 
+A clerk starts serving a customer: start time 0.40, customer ID  2, the clerk ID 2.
+Customer with ID  3 arrives at time 5
+Customer 3 entered the economy queue
+A customer enters a queue: the queue ID is 0, and the length of the queue is  1. 
+A clerk starts serving a customer: start time 0.50, customer ID  3, the clerk ID 3.
+Customer with ID  4 arrives at time 7
+Customer 4 entered the business queue
+A customer enters a queue: the queue ID is 1, and the length of the queue is  1. 
+Customer with ID  5 arrives at time 7
+Customer 5 entered the business queue
+A customer enters a queue: the queue ID is 1, and the length of the queue is  2. 
+A clerk starts serving a customer: start time 0.70, customer ID  4, the clerk ID 5.
+A clerk starts serving a customer: start time 0.70, customer ID  5, the clerk ID 4.
+Customer with ID  6 arrives at time 8
+Customer 6 entered the business queue
+A customer enters a queue: the queue ID is 1, and the length of the queue is  1. 
+Customer with ID  7 arrives at time 10
+Customer 7 entered the economy queue
+A customer enters a queue: the queue ID is 0, and the length of the queue is  1. 
+Customer with ID  8 arrives at time 11
+Customer 8 entered the economy queue
+A customer enters a queue: the queue ID is 0, and the length of the queue is  2. 
+A clerk finishes serving a customer: end time 3.70, the customer ID  4, the clerk ID 5.
+A clerk starts serving a customer: start time 3.70, customer ID  6, the clerk ID 5.
+A clerk finishes serving a customer: end time 4.70, the customer ID  5, the clerk ID 4.
+A clerk starts serving a customer: start time 4.70, customer ID  7, the clerk ID 4.
+A clerk finishes serving a customer: end time 5.50, the customer ID  3, the clerk ID 3.
+A clerk starts serving a customer: start time 5.50, customer ID  8, the clerk ID 3.
+A clerk finishes serving a customer: end time 6.20, the customer ID  1, the clerk ID 1.
+clerk 1 is going idle
+A clerk finishes serving a customer: end time 7.40, the customer ID  2, the clerk ID 2.
+clerk 2 is going idle
+A clerk finishes serving a customer: end time 7.70, the customer ID  7, the clerk ID 4.
+clerk 4 is going idle
+A clerk finishes serving a customer: end time 8.70, the customer ID  6, the clerk ID 5.
+clerk 5 is going idle
+A clerk finishes serving a customer: end time 10.50, the customer ID  8, the clerk ID 3.
+The average waiting time for all customers in the system is: 1.38 seconds.
+The average waiting time for all business-class customers is: 0.97 seconds.
+The average waiting time for all economy-class customers is: 1.62 seconds.
