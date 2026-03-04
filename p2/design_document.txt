@@ -2,13 +2,13 @@
 
 2. The threads are synchronized through convars, but not there is no central controller thread. Main does start each thread, but each thread works itself and uses signals etc to interact with other threads. For example, a customer thread will signal queue_not_empty for the clerk loop.
 
-3. I will use one mutex. This design consideration makes it simplest to ensure queue resources are locked sufficiently without deadlocking with other queue resources. This will require more focus on which thread has acquired the deadlock and what that means for the execution of the other threads.
+3. I will use 2 mutexes, one for most operations and one for synchronous file writing to the output file. This design consideration makes it simplest to ensure queue resources are locked sufficiently without deadlocking with other queue resources. This will require more focus on which thread has acquired the deadlock and what that means for the execution of the other threads.
 
 4. The main thread will do file processing, malloc, struct/queue building, then will create/join the clerk/customer threads. It will print the waiting times respectively, then cleanup/destroy resources and exit.
 
 5. I will represent customers as threads, and track each customer using a queue, and using a struct containing customer info, I can operate on them based on their information and statuses.
 
-6. Using a mutex wrapping around queue operations and time modification operations, I can ensure only one thread accesses them at a time, ensuring that the resources won't corrupt.
+6. Using a mutex wrapping around queue operations and time modification operations, I can ensure only one thread accesses them at a time, ensuring that the resources won't corrupt. Same applies to output file writing, with it's own mutex.
 
 7. I will use 1 + N convars, one for signaling queue_not_empty, and one per customer that signals selected by clerk.
 
@@ -51,3 +51,7 @@ initialize threads
 join threads
 print times
 free and destroy resources
+
+output file writing:
+A formatter helper function in conjunction with a printing output to file function will simplify writing each line to the output file.
+This will be called in place of a regular stdout print function call like fprintf or printf.
