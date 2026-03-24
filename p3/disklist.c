@@ -106,6 +106,7 @@ void format_name(const uint8_t *entry, char *out, size_t out_len) {
 }
 
 void format_datetime(uint16_t date, uint16_t time, char *out, size_t out_len) {
+    // bitwise operations to shift to desired time attribute
     int day = date & 0x1F;
     int month = (date >> 5) & 0x0F;
     int year = 1980 + ((date >> 9) & 0x7F);
@@ -116,16 +117,12 @@ void format_datetime(uint16_t date, uint16_t time, char *out, size_t out_len) {
     snprintf(out, out_len, "%04d-%02d-%02d %02d:%02d:%02d", year, month, day, hour, min, sec);
 }
 
-void print_dir_header(const char *name) {
-    printf("%s\n==================\n", name);
-}
-
 void list_directory(FILE *fp, uint16_t start_cluster, const char *dir_name, int is_root) {
     uint8_t entry[32];
     char name_buf[24];
     char datetime_buf[32];
 
-    print_dir_header(dir_name);
+    printf("%s\n==================\n", dir_name);
 
     if (is_root) {
         uint32_t root_start = find_root_dir_start_bytes(fp);

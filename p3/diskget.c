@@ -107,6 +107,7 @@ void format_name(const uint8_t *entry, char *out, size_t out_len) {
 }
 
 void uppercase_inplace(char *s) {
+    // while char not null toupper it inplace
     for (; *s; s++) {
         *s = (char)toupper((unsigned char)*s);
     }
@@ -126,9 +127,9 @@ uint16_t find_file_cluster_in_root(FILE *fp, const char *filename, uint32_t *out
     fseek(fp, root_start, SEEK_SET);
     for (uint16_t i = 0; i < root_entry_count; i++) {
         fread(entry, 32, 1, fp);
-        if (entry[0] == 0x00) break;
-        if (entry[0] == 0xE5) continue;
-        if (entry[11] == 0x0F) continue;
+        if (entry[0] == 0x00) break; //no more entries
+        if (entry[0] == 0xE5) continue; //deleted(freed) so conitnue
+        if (entry[11] == 0x0F) continue; //LFN
 
         uint8_t attr = entry[11];
         if (attr & 0x10) continue;
